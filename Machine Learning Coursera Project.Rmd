@@ -1,0 +1,102 @@
+---
+title: "Machine Learning Coursera Project"
+author: "bcoke"
+date: "October 25, 2015"
+output: html_document
+---
+
+
+```{r, suppressMessages = TRUE}
+require(caret)
+require(randomForest)
+```
+
+#Introduction
+Human Activity Recognition (HAR) has the potential for many powerful applications monitoring physicial activity in health and disease. Machine learning techniques allow for classification of such human activity.The purpose of this analysis is to use machine learning techniques in R to predict five types of dumbell lifts (correct and incorrect techniques). Such a technique has the potential to allow for closed loop classification of dumbell curls, thus alerting the user if their technique is correct or incorrect. 
+
+#Methods
+
+First we need to read in the data. Click for the [training data](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) and [test data](ttps://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv).
+
+The data is also available in this github repo.
+
+Once the data is downloaded, it can read into R with the following command.
+```{r}
+trainSet<- read.csv("pml-training.csv")
+testSet <- read.csv("pml-testing.csv")
+```
+
+#Cleaning the Data
+
+First we will set the seed so the analysis is reproducible. Then we will split the training data into a training and testing set.
+```{r}
+set.seed(8484)
+trainIndex = sample(1:dim(trainSet)[1],size=dim(trainSet)[1]/8,replace=F)
+train = trainSet[trainIndex,]
+test = trainSet[-trainIndex,]
+```
+
+#Model Building
+To find the columns in the data set that have near zero variance (and thus are of little value for our training), I first use the nearZeroVar function. I then set a variable called classIndex to remove the unwanted columns.
+
+```{r}
+nsv <- nearZeroVar(train, saveMetrics = TRUE)
+x <- nsv[4]
+classIndex <- which(x$nzv == FALSE)
+# remove columns with near zero variance
+trainClassBig <- trainSet[, classIndex]
+# remove first 6 columns that don't add to the model
+trainClassBig <- trainClassBig[, -(1:6)]
+```
+
+Next I look in the testSet to see what rows contain no data to remove columns that will not contribute to the model.
+
+```{r}
+testSetIndexed <- testSet[, classIndex]
+testSetIndexed <- testSetIndexed[, -(1:6)]
+
+naindex <- which(is.na(testSetIndexed[1, ]))
+
+# Creating test and training datasets without the unneeded columns
+testSetIndexed <- testSetIndexed[, -naindex]
+trainClassBig <- trainClassBig[, -naindex]
+```
+
+
+Next I create the model using the randomForest package.
+
+```{r bestFit model, cache = TRUE}
+bestFit <- randomForest(classe ~ ., data = trainClassBig)
+```
+
+And we can take a look at the how well the model works.
+```{r final model}
+print(bestFit)
+```
+
+The model has an out-of-bag (OOB) estimate of error rate of 0.26%. We can also visualize the confusion matrix, which confirms what we see in the quantitative measurements above.
+
+```{r Heatmap of confusion matrix}
+x <- as.matrix(as.data.frame(bestFit[5]))
+x <- x[, -6]
+heatmap(x, Rowv = NA, Colv = NA, revC = TRUE,
+        main = "Heatmap of Confusion Matrix",
+        cexCol = 1, cexRow = 1)
+```
+
+Lastly, we can use our model to predict the test set.
+
+```{r predicting the test set}
+predict(bestFit, testSetIndexed)
+```
+
+
+#Discussion
+Using relatively simple commands, I was able to develop an impressively accurate, random forest machine learning algorithtim to classify HAR data. Such an approach is generally useful for many large datasets and applications beyond HAR.
+
+
+#References
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6. 
+
+Read more about the dataset [here](http://groupware.les.inf.puc-rio.br/har).
+
