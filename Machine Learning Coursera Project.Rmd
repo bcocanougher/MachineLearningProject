@@ -2,7 +2,7 @@
 title: "Machine Learning Coursera Project"
 author: "bcoke"
 date: "October 25, 2015"
-output: html_document
+output: pdf_document
 ---
 
 
